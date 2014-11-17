@@ -56,6 +56,8 @@ define([], function() {
     pc.draw = function() {
         this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
 
+        this.addClipForAndroid.apply(this, this.getRingMaskRadii(this.options.thickness));
+
         this.data.forEach(function(data) {
             this.drawSegment.apply(this, data);
         }.bind(this));
@@ -168,13 +170,22 @@ define([], function() {
             edge: this.getEdge(angle)
         };
     };
+    pc.addClipForAndroid = function(radius) {
+        //fix for stock android browsers that do not support 'ctx.globalCompositeOperation = 'destination-in';'
+        if (navigator.userAgent.match('Android') && navigator.userAgent.match('AppleWebKit')){
+              this.ctx.beginPath();
+              this.ctx.arc(this.getCentre()[0], this.getCentre()[1], radius, 0, Math.PI * 2, true);
+              this.ctx.closePath();
+              this.ctx.clip();
+        }
+    }
     pc.drawSegment = function(startAngle, endAngle, color) {
         var startLine, endLine,
             i = 0;
         startLine = this.drawLine(startAngle, color);
         endLine = this.drawLine(endAngle, color);
 
-
+        
 
         while (startLine.edge !== endLine.edge) {
             endLine = this.gotoPreviousCorner(endLine);
@@ -184,16 +195,20 @@ define([], function() {
         this.ctx.fill();
     };
     pc.maskPath = function(radius, thickness) {
+        
+
+        this.ctx.beginPath();
+        this.ctx.arc(this.getCentre()[0], this.getCentre()[1], radius, 0, Math.PI * 2, true);
+        this.ctx.closePath();
+        this.ctx.globalCompositeOperation = 'destination-in';
+        this.ctx.fill();
+
         this.ctx.beginPath();
         this.ctx.arc(this.getCentre()[0], this.getCentre()[1], thickness, 0, Math.PI * 2, true);
         this.ctx.closePath();
 
         /// set composite mode
         this.ctx.globalCompositeOperation = 'destination-out';
-        this.ctx.fill();
-
-        this.ctx.arc(this.getCentre()[0], this.getCentre()[1], radius, 0, Math.PI * 2, true);
-        this.ctx.globalCompositeOperation = 'destination-in';
         this.ctx.fill();
 
         /// reset composite mode to default
