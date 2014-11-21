@@ -276,7 +276,7 @@ define([], function() {
                 throw new TypeError('first argument of Pie must be a DOM element');
                 result = false;
             }
-            if (data.filter(function(elem) { return (typeof elem.percentage !== 'number' || typeof elem.hex !== 'string') || typeof elem.label !== 'string');}).length) {
+            if (data.filter(function(elem) { return (typeof elem.percentage !== 'number' || typeof elem.hex !== 'string' || typeof elem.label !== 'string');}).length) {
                 throw new TypeError('Pie Data invalid, must be an array of objects -> [{label: "string", hex: "string", percentage: number}]');
                 result = false;
             }
