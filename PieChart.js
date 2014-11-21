@@ -13,16 +13,19 @@
  *
  *
  *          [
- *              {
- *                  "percentage": 30,
+ *              {   
+ *                  "label": "test 1",
+ *                  "percentage": 0.3,
  *                  "hex": "#123456"
  *              },
- *               {
- *                  "percentage": 30,
+ *               {  
+ *                  "label": "test 2",
+ *                  "percentage": 0.3,
  *                  "hex": "#654321"
  *              },
  *               {
- *                  "percentage": 40,
+ *                  "label": "test 3",
+ *                  "percentage": 0.4,
  *                  "hex": "#ffaa11"
  *              }
  *          ]
@@ -34,7 +37,7 @@
  */
 
 define([], function() {
-    var PieChart, pc, tests,
+    var PieChart, pc, tests, toHex, clickHandler,
         edgeOrder = ['top', 'right', 'bottom', 'left'];
 
     PieChart = function(element, data, options) {
@@ -42,10 +45,46 @@ define([], function() {
         this.element = element;
         this.procOptions(options);
         this.data = this.getConvertedData(data);
+
         this.initCanvas();
         this.draw();
+
+        this.labels = data.map(function(item){
+            return {
+                key: item.hex,
+                label: item.label
+            }
+        });
+
+        clickHandler = this.handleClick.bind(this);
+        this.canvas.addEventListener('click', clickHandler);
     };
     pc = PieChart.prototype;
+
+    pc.handleClick = function(e) {
+        var data = this.ctx.getImageData(e.x, e.y, 1, 1).data,
+            hex = '#' + toHex(data[0]) + toHex(data[1]) + toHex(data[2]),
+            result = this.getLabelFromKey(hex);
+            
+            if (result) {
+                //trigger custom event, add result to event and pass through
+                e.pieLabel = result;
+                this.onLabelClicked(e);
+            }
+    };
+    pc.onLabelClicked = function(e) {
+        //Blank method. Overwrite with your own call back
+    };
+    pc.lowerCaseCompare = function(a, b) {
+        return a.toLowerCase() === b.toLowerCase();
+    };
+    pc.getLabelFromKey = function(key) {
+        var result = this.labels.filter(function(label) {
+            return this.lowerCaseCompare(key, label.key)
+        }.bind(this))
+        result = result.length ? result[0].label : false;
+        return result;
+    };
 
     pc.procOptions = function(options) {
         options = options || {};
@@ -237,8 +276,8 @@ define([], function() {
                 throw new TypeError('first argument of Pie must be a DOM element');
                 result = false;
             }
-            if (data.filter(function(elem) { return (typeof elem.percentage !== 'number' || typeof elem.hex !== 'string');}).length) {
-                throw new TypeError('Pie Data invalid, must be an array of objects -> [{hex: "string", percentage: number}]');
+            if (data.filter(function(elem) { return (typeof elem.percentage !== 'number' || typeof elem.hex !== 'string') || typeof elem.label !== 'string');}).length) {
+                throw new TypeError('Pie Data invalid, must be an array of objects -> [{label: "string", hex: "string", percentage: number}]');
                 result = false;
             }
             if (data.reduce(function(previousValue, currentValue, index, array) {return previousValue + currentValue.percentage;},0) > 1) {
@@ -247,6 +286,9 @@ define([], function() {
             }
 
         return result;
+    };
+    toHex = function(val) {
+        return ("0" + parseInt(val).toString(16)).slice(-2);
     };
 
     return function(element, data, options) {
