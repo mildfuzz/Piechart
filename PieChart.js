@@ -3,7 +3,9 @@
  *
  * Build Pie chart based on percentages
  *
- * myPie = Pie(ParentElement, data, options);
+ * myPie = Pie(ParentElement*, data*, options);
+ *
+ * * = required
  *
  * Canvas takes size from ParentElement
  *
@@ -13,12 +15,12 @@
  *
  *
  *          [
- *              {   
+ *              {
  *                  "label": "test 1",
  *                  "percentage": 0.3,
  *                  "hex": "#123456"
  *              },
- *               {  
+ *               {
  *                  "label": "test 2",
  *                  "percentage": 0.3,
  *                  "hex": "#654321"
@@ -30,7 +32,7 @@
  *              }
  *          ]
  *
- *  options are optional
+
  *
  * options.thickness = 0.1 (default. Percentage of total radius to display)
  * options.offset = 1 (degrees. Size of gap between segments)
@@ -38,13 +40,15 @@
 
 define([], function() {
     var PieChart, pc, tests, toHex, clickHandler,
-        edgeOrder = ['top', 'right', 'bottom', 'left'];
+        edgeOrder = ['top', 'right', 'bottom', 'left'],
+        transitionEnd = ['webkitTransitionEnd', 'transitionend', 'msTransitionEnd', 'oTransitionEnd'];
 
     PieChart = function(element, data, options) {
 
         this.element = element;
         this.procOptions(options);
-        this.data = this.getConvertedData(data);
+        this.segmentData = this.getConvertedData(data);
+        // this.rotationPoints = this.getRotationPoint(data);
 
         this.initCanvas();
         this.draw();
@@ -64,23 +68,40 @@ define([], function() {
     pc.handleClick = function(e) {
         var data = this.ctx.getImageData(e.x, e.y, 1, 1).data,
             hex = '#' + toHex(data[0]) + toHex(data[1]) + toHex(data[2]),
-            result = this.getLabelFromKey(hex);
-            
+            result = this.getLabelFromHex(hex);
+
             if (result) {
                 //trigger custom event, add result to event and pass through
                 e.pieLabel = result;
                 this.onLabelClicked(e);
             }
     };
+    pc.rotateToLabel = function(label) {
+        var angle,
+            transition = 'transform 1s ease',
+            segments = this.segmentData.filter(function(segment) {
+                return segment.label === label;
+            }),
+            segment = segments.length ? segments[0] : false;
+
+        if (segment) {
+            this.rotateStateToggle = Number(!this.rotateStateToggle);
+            angle = -(360 * this.rotateStateToggle + segment.startAngle);
+            this.canvas.style.transition = this.canvas.style.mozTransition = this.canvas.style.webkitTransition = transition;
+            this.canvas.style.transform = 'rotate(' + angle + 'deg)';
+        }
+
+    };
+
     pc.onLabelClicked = function(e) {
         //Blank method. Overwrite with your own call back
     };
     pc.lowerCaseCompare = function(a, b) {
         return a.toLowerCase() === b.toLowerCase();
     };
-    pc.getLabelFromKey = function(key) {
-        var result = this.labels.filter(function(label) {
-            return this.lowerCaseCompare(key, label.key)
+    pc.getLabelFromHex = function(hex) {
+        var result = this.segmentData.filter(function(label) {
+            return this.lowerCaseCompare(hex, label.hex)
         }.bind(this))
         result = result.length ? result[0].label : false;
         return result;
@@ -97,8 +118,8 @@ define([], function() {
 
         this.addClipForAndroid.apply(this, this.getRingMaskRadii(this.options.thickness));
 
-        this.data.forEach(function(data) {
-            this.drawSegment.apply(this, data);
+        this.segmentData.forEach(function(data) {
+            this.drawSegment(data.startAngle, data.endAngle, data.hex);
         }.bind(this));
 
         this.maskPath.apply(this, this.getRingMaskRadii(this.options.thickness));
@@ -123,10 +144,15 @@ define([], function() {
                 var startAngle = currentStartAngle;
                 var endAngle = startAngle + this.getAngleFromPercentage(data.percentage);
                 currentStartAngle = endAngle;
-                return [startAngle, endAngle, data.hex];
+                return [startAngle, endAngle, data.hex, data.label];
             }.bind(this))
             .map(function(data) {
-                return [data[0] + (this.options.offset / 2), data[1] - (this.options.offset / 2), data[2]];
+                return {
+                    startAngle: data[0] + (this.options.offset / 2),
+                    endAngle: data[1] - (this.options.offset / 2),
+                    hex:  data[2],
+                    label:  data[3]
+                };
             }.bind(this));
     };
     pc.getCorner = function(edge1, edge2) {
@@ -144,8 +170,8 @@ define([], function() {
         }.bind(this));
     };
     pc.initCanvas = function() {
-        var sizes = this.element.getBoundingClientRect()
-            addedToCanvas = !!this.canvas;
+        var addedToCanvas = !!this.canvas,
+            sizes = this.element.getBoundingClientRect();
         this.canvas = this.canvas || document.createElement('canvas');
         this.canvas.height = sizes.height;
         this.canvas.width = sizes.width;
@@ -224,7 +250,7 @@ define([], function() {
         startLine = this.drawLine(startAngle, color);
         endLine = this.drawLine(endAngle, color);
 
-        
+
 
         while (startLine.edge !== endLine.edge) {
             endLine = this.gotoPreviousCorner(endLine);
@@ -234,7 +260,7 @@ define([], function() {
         this.ctx.fill();
     };
     pc.maskPath = function(radius, thickness) {
-        
+
 
         this.ctx.beginPath();
         this.ctx.arc(this.getCentre()[0], this.getCentre()[1], radius, 0, Math.PI * 2, true);
@@ -294,7 +320,10 @@ define([], function() {
     return function(element, data, options) {
         if (tests.apply(this, arguments)) {
             var Pie = new PieChart(element, data, options);
-            Pie.redraw = Pie.clearAndDraw.bind(Pie); //alias for external use
+
+            //context management
+            Pie.redraw = Pie.clearAndDraw.bind(Pie);
+            Pie.rotateToLabel = Pie.rotateToLabel.bind(Pie);
             return Pie;
         }
 
