@@ -39,7 +39,7 @@
  */
 
 define([], function() {
-    var PieChart, pc, tests, toHex, clickHandler,
+    var PieChart, pc, tests, toHex, clickHandler, currentLabel,
         edgeOrder = ['top', 'right', 'bottom', 'left'],
         transitionEnd = ['webkitTransitionEnd', 'transitionend', 'msTransitionEnd', 'oTransitionEnd'];
 
@@ -47,9 +47,10 @@ define([], function() {
 
         this.element = element;
         this.procOptions(options);
+
         this.segmentData = this.getConvertedData(data);
         // this.rotationPoints = this.getRotationPoint(data);
-
+        currentLabel = this.segmentData[0].label;
         this.initCanvas();
         this.draw();
 
@@ -77,6 +78,13 @@ define([], function() {
             }
     };
     pc.rotateToLabel = function(label) {
+        // do not rotate when label is currentLabel
+        if (currentLabel === label) {
+            return;
+        } else {
+            currentLabel = label;
+        }
+
         var angle,
             transition = 'transform 1s ease',
             segments = this.segmentData.filter(function(segment) {
@@ -85,7 +93,7 @@ define([], function() {
             segment = segments.length ? segments[0] : false;
 
         if (segment) {
-            this.rotateStateToggle = Number(!this.rotateStateToggle);
+            this.rotateStateToggle = Number(!this.rotateStateToggle); //alternates between 1 and 0;
             angle = -(360 * this.rotateStateToggle + segment.startAngle);
             this.canvas.style.transition = this.canvas.style.mozTransition = this.canvas.style.webkitTransition = transition;
             this.canvas.style.transform = 'rotate(' + angle + 'deg)';
