@@ -115,6 +115,11 @@ define([], function() {
         return result;
     };
 
+    pc.remove = function() {
+        this.canvas.removeEventListener('click', clickHandler);
+        this.canvas = null;
+    };
+
     pc.procOptions = function(options) {
         options = options || {};
         this.options = {};
