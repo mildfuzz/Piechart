@@ -44,7 +44,6 @@ define([], function() {
         transitionEnd = ['webkitTransitionEnd', 'transitionend', 'msTransitionEnd', 'oTransitionEnd'];
 
     PieChart = function(element, data, options) {
-
         this.element = element;
         this.procOptions(options);
 
@@ -117,14 +116,16 @@ define([], function() {
 
     pc.remove = function() {
         this.canvas.removeEventListener('click', clickHandler);
+        this.canvas.parentElement.removeChild(this.canvas)
         this.canvas = null;
+        return null;
     };
 
     pc.procOptions = function(options) {
         options = options || {};
         this.options = {};
-        this.options.thickness = options.thickness || 0.1;
-        this.options.offset = options.offset || 1;
+        this.options.thickness = isNaN(options.thickness) ? 0.1 : options.thickness;
+        this.options.offset = isNaN(options.offset) ? 1 : options.offset;
     };
     pc.draw = function() {
         this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
@@ -151,8 +152,8 @@ define([], function() {
         return percentage * 360;
     };
     pc.getConvertedData = function(data) {
-        var currentStartAngle = 0;
-        return data
+        var currentStartAngle = 0,
+        formattedData = data
             .map(function(data) {
                 var startAngle = currentStartAngle;
                 var endAngle = startAngle + this.getAngleFromPercentage(data.percentage);
@@ -167,6 +168,8 @@ define([], function() {
                     label:  data[3]
                 };
             }.bind(this));
+
+            return formattedData;
     };
     pc.getCorner = function(edge1, edge2) {
         return [edge1, edge2].splice(0, 2).map(function(edge) {
@@ -263,7 +266,10 @@ define([], function() {
         startLine = this.drawLine(startAngle, color);
         endLine = this.drawLine(endAngle, color);
 
-
+        // hack to higher that 80% segments
+        if (startLine.edge === endLine.edge && (endAngle - startAngle > 90)) {
+            endLine = this.gotoPreviousCorner(endLine);
+        }
 
         while (startLine.edge !== endLine.edge) {
             endLine = this.gotoPreviousCorner(endLine);
